@@ -123,26 +123,46 @@ pub(crate) fn read_dia_windows(
     let mut out = Vec::new();
     let mut stmt =
         conn.prepare("SELECT Frame, WindowGroup FROM DiaFrameMsMsInfo ORDER BY Frame")?;
+    let slices: usize = std::env::var("ANDES_PASEF_SLICES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1)
+        .max(1);
     let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))?;
     for row in rows {
         let (frame, group) = row?;
         for &(begin, end, mz, width, energy) in groups.get(&group).into_iter().flatten() {
-            out.push(PasefPrecursor {
-                id: out.len() + 1,
-                mz,
-                charge: None,
-                intensity: None,
-                parent: parent_of.get(&frame).copied(),
-                scan_number: Some((begin + end) as f64 / 2.0),
-                isolation_width: width,
-                collision_energy: energy,
-                selections: vec![Selection {
-                    frame_id: frame as usize,
-                    scan_begin: begin,
-                    scan_end: end,
-                }],
-                dia: true,
-            });
+            let step = (end - begin).div_ceil(slices);
+            let mut lo = begin;
+            let mut k = 0usize;
+            while lo < end {
+                let hi = if slices == 1 {
+                    end
+                } else {
+                    (lo + 2 * step).min(end)
+                };
+                out.push(PasefPrecursor {
+                    id: out.len() + 1,
+                    mz: mz + 0.01 * k as f64,
+                    charge: None,
+                    intensity: None,
+                    parent: parent_of.get(&frame).copied(),
+                    scan_number: Some((lo + hi) as f64 / 2.0),
+                    isolation_width: width,
+                    collision_energy: energy,
+                    selections: vec![Selection {
+                        frame_id: frame as usize,
+                        scan_begin: lo,
+                        scan_end: hi,
+                    }],
+                    dia: true,
+                });
+                if hi == end {
+                    break;
+                }
+                lo += step;
+                k += 1;
+            }
         }
     }
     Ok(out)

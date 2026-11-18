@@ -640,7 +640,11 @@ impl<'a> PreparedSearch<'a> {
     }
 
     fn dia_ms1_has(&self, scans: std::ops::Range<usize>, mz: f64) -> bool {
-        let tol = mz * DIA_MS1_GATE_PPM * 1e-6;
+        let ppm = std::env::var("ANDES_DIA_MS1_PPM")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(DIA_MS1_GATE_PPM);
+        let tol = mz * ppm * 1e-6;
         self.dia_ms1[scans].iter().any(|s| {
             let i = s.peaks.partition_point(|p| p.0 < mz - tol);
             s.peaks.get(i).is_some_and(|p| p.0 <= mz + tol)
@@ -1165,8 +1169,7 @@ impl<'a> PreparedSearch<'a> {
                                 params.precursor_mass_shift_ppm,
                             );
                             for off in params.isotope_error_range.clone() {
-                                let corrected = observed
-                                    - f64::from(off) * model::mass::ISOTOPE;
+                                let corrected = observed - f64::from(off) * model::mass::ISOTOPE;
                                 let delta = corrected - cand.peptide.mass();
                                 if delta.abs() <= 0.5
                                     || delta < open.delta_min
@@ -1174,8 +1177,7 @@ impl<'a> PreparedSearch<'a> {
                                 {
                                     continue;
                                 }
-                                let loc_tol =
-                                    fragment_tolerance_da.max(2e-5 * cand.peptide.mass());
+                                let loc_tol = fragment_tolerance_da.max(2e-5 * cand.peptide.mass());
                                 let Some(loc) = crate::open_search::localize_and_refine(
                                     &cand.peptide,
                                     peaks,
@@ -1357,8 +1359,7 @@ impl<'a> PreparedSearch<'a> {
                     let mut shifted_pep: Option<Peptide> = None;
                     let mut open_delta_ref: Option<f64> = None;
                     {
-                        if let (Some(_), Some(peaks)) =
-                            (params.open_search, open_peaks.as_deref())
+                        if let (Some(_), Some(peaks)) = (params.open_search, open_peaks.as_deref())
                         {
                             let zf = f64::from(psm.charge_used);
                             let mz = psm.precursor_mz_override.unwrap_or(spec.precursor_mz);
@@ -1368,8 +1369,7 @@ impl<'a> PreparedSearch<'a> {
                             ) - f64::from(psm.isotope_offset) * model::mass::ISOTOPE;
                             let delta = observed - cand.peptide.mass();
                             if delta.abs() > 0.5 {
-                                let loc_tol =
-                                    fragment_tolerance_da.max(2e-5 * cand.peptide.mass());
+                                let loc_tol = fragment_tolerance_da.max(2e-5 * cand.peptide.mass());
                                 if let Some(loc) = crate::open_search::localize_and_refine(
                                     &cand.peptide,
                                     peaks,
@@ -1508,9 +1508,7 @@ impl<'a> PreparedSearch<'a> {
 
                 {
                     let mut accum = self.mmap_accum.lock().unwrap();
-                    queue.remap_candidate_idxs(|local| {
-                        accum.intern(&mmap_cands[local as usize])
-                    });
+                    queue.remap_candidate_idxs(|local| accum.intern(&mmap_cands[local as usize]));
                 }
 
                 if params.open_search.is_some() {
