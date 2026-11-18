@@ -862,8 +862,8 @@ pub(crate) fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     params.chimeric = chimeric_active;
     if cli.dia {
-        if !(is_mzml || is_raw) {
-            return Err("--dia needs mzML or Thermo .raw input (isolation windows and MS1)".into());
+        if !(is_mzml || is_raw || is_d) {
+            return Err("--dia needs mzML, Thermo .raw or Bruker .d input (isolation windows and MS1)".into());
         }
         if chimeric_active {
             return Err("--dia and --chimeric cannot be combined: --dia searches every scan across its whole window".into());
