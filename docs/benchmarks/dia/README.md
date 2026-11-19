@@ -371,6 +371,25 @@ slices, filtered vote, near-variant decoys, Percolator 3 seeds (mean).
 - More fragment-index candidates or a looser vote filter do not bring the missing precursors
   in, so candidate retrieval is not the limit.
 
+### Near-variant decoys: which set, and their spread
+
+Same settings as the best row above (16 slices, filtered vote, MS1 recentring, MS1 gate 8 ppm),
+Percolator 3 seeds (mean). The decoy set changes from row to row; the targets do not.
+
+| Decoys | O4: q ≤ 1% / FDP_c | B18: q ≤ 1% / FDP_c |
+|---|---:|---:|
+| External FASTA (`nvdecoy.py`, seed 7) | 3,105 / 1.7% | 2,928 / 2.3% |
+| External FASTA (`nvdecoy.py`, seed 11) | 3,287 / 2.6% | 2,698 / 2.4% |
+| `--decoy-strategy mutate` (seed 42) | 3,206 / 2.9% | 3,007 / 3.2% |
+| `--decoy-strategy mutate --decoy-seed 7` | 3,163 / 2.2% | 2,995 / 2.7% |
+
+- One decoy set against another moves FDP_c by up to 1 point at the same q ≤ 1% count. The
+  built-in and external decoys overlap in that range, so the 1.7% / 2.3% of the first row is
+  partly a lucky draw. Across the four sets the mean is 2.3% / 2.7%.
+- At andes's top 4,000 precursors, decoys are 1.4-1.5 times the entrapment hits. Decoys that
+  modelled entrapment exactly would give 1/r = 2.1, so near-variant decoys still undercount the
+  wrong targets by about a third.
+
 - The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
   (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
   precursors vs 64,737 for `hcd_qexactive_tryp`, so the seed model already fits timsTOF MS2.
