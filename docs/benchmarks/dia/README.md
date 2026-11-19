@@ -395,6 +395,31 @@ Percolator 3 seeds (mean). The decoy set changes from row to row; the targets do
   share fewer fragments with the co-isolated real peptide, so they score lower; the q ≤ 1% count
   goes up by 10-15% but FDP_c goes up to 3.4-4.6%. One substitution stays the default.
 
+### Near-variant contest
+
+Label-blind rule: a PSM is removed when a PSM of the same spectrum with a higher score has the
+same length and differs at 1 or 2 residues (I = L). The winner can be a target or a decoy.
+16 slices, filtered vote, MS1 gate 8 ppm, mean of 3 Percolator seeds.
+
+| Decoys | Contest | O4: q ≤ 1% / FDP_c | B18: q ≤ 1% / FDP_c |
+|---|---|---:|---:|
+| Reversed | none | 3,531 / 4.3% | 2,794 / 5.0% |
+| Reversed | after Percolator | 3,529 / 3.0% | 2,753 / 3.5% |
+| Near-variant, 4 sets (mean) | none | 3,163 / 2.0% | 2,879 / 2.2% |
+| Near-variant, 4 sets (mean) | after Percolator | 3,318 / 1.8% | 3,006 / 2.0% |
+| Near-variant, 4 sets (mean), `entrap.py` | none | 3,190 / 2.3% | 2,907 / 2.7% |
+| Near-variant, 4 sets (mean), `entrap.py` | before Percolator (on the PIN) | 3,238 / 2.3% | 2,929 / 2.5% |
+
+The "after" rows re-rank Percolator's PSM scores at precursor level in `contest.py`; the last two
+rows use `entrap.py` on a new Percolator run, so compare each row with the "none" row above it.
+
+- After Percolator the contest lowers FDP_c by about 30% with reversed decoys and by about 10%
+  with near-variant decoys, with no loss of IDs (near-variant: +4-5%).
+- Before Percolator it does almost nothing: Percolator relearns the same weights on the smaller
+  PIN, and the wrong variants that remain are those that already win their spectrum.
+- The contest and the near-variant decoys fix the same error, so their gains do not add up. The
+  best combination (near-variant decoys + contest after Percolator) is still at 1.8-2.0%.
+
 - The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
   (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
   precursors vs 64,737 for `hcd_qexactive_tryp`, so the seed model already fits timsTOF MS2.
