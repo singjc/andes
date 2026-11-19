@@ -382,6 +382,8 @@ Percolator 3 seeds (mean). The decoy set changes from row to row; the targets do
 | External FASTA (`nvdecoy.py`, seed 11) | 3,287 / 2.6% | 2,698 / 2.4% |
 | `--decoy-strategy mutate` (seed 42) | 3,206 / 2.9% | 3,007 / 3.2% |
 | `--decoy-strategy mutate --decoy-seed 7` | 3,163 / 2.2% | 2,995 / 2.7% |
+| External FASTA, 2 substitutions per segment, seed 7 | 3,515 / 3.4% | 3,125 / 4.6% |
+| External FASTA, 2 substitutions per segment, seed 11 | 3,478 / 3.5% | 3,072 / 4.0% |
 
 - One decoy set against another moves FDP_c by up to 1 point at the same q ≤ 1% count. The
   built-in and external decoys overlap in that range, so the 1.7% / 2.3% of the first row is
@@ -389,6 +391,9 @@ Percolator 3 seeds (mean). The decoy set changes from row to row; the targets do
 - At andes's top 4,000 precursors, decoys are 1.4-1.5 times the entrapment hits. Decoys that
   modelled entrapment exactly would give 1/r = 2.1, so near-variant decoys still undercount the
   wrong targets by about a third.
+- Two substitutions per segment make the decoys less like the wrong targets, not more. They
+  share fewer fragments with the co-isolated real peptide, so they score lower; the q ≤ 1% count
+  goes up by 10-15% but FDP_c goes up to 3.4-4.6%. One substitution stays the default.
 
 - The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
   (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
