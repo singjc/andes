@@ -660,6 +660,31 @@ impl<'a> PreparedSearch<'a> {
         std::mem::take(&mut self.dia_ms1)
     }
 
+    pub fn shift_dia_ms1_ppm(&mut self, ppm: f64) {
+        let f = 1.0 - ppm * 1e-6;
+        for s in &mut self.dia_ms1 {
+            for p in &mut s.peaks {
+                p.0 *= f;
+            }
+        }
+    }
+
+    pub fn dia_ms1_error_ppm(&self, rt: Option<f64>, mz: f64, window_ppm: f64) -> Option<f64> {
+        let tol = mz * window_ppm * 1e-6;
+        self.dia_ms1_scans(rt)?
+            .filter_map(|k| {
+                let s = &self.dia_ms1[k];
+                let i = s.peaks.partition_point(|p| p.0 < mz - tol);
+                s.peaks[i..]
+                    .iter()
+                    .take_while(|p| p.0 <= mz + tol)
+                    .max_by(|a, b| a.1.total_cmp(&b.1))
+                    .copied()
+            })
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|p| (p.0 - mz) / mz * 1e6)
+    }
+
     fn dia_ms1_has(&self, scans: std::ops::Range<usize>, mz: f64) -> bool {
         let tol = mz * self.params.dia_ms1_tol_ppm * 1e-6;
         self.dia_ms1[scans].iter().any(|s| {
