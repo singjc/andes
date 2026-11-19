@@ -310,6 +310,38 @@ With these decoys, nominal q ≤ 0.01 measures 1.7-4.2% FDP_c instead of 6.3-7.0
 of 1%, the yield rises from 35 to 81 precursors (O4) and from 62 to 122 (B18), mean of 3 seeds.
 That count is small and noisy because one entrapment hit near the top of the list ends it.
 
+### Fragment-index vote on filtered peaks, and mobility slices
+
+A whole-window diaPASEF spectrum has a median of about 10,600 peaks (310 at 8 slices, 67 at 32).
+At high resolution every peak votes in the fragment index, and `--peak-filter` applied only at
+scoring. So a 1-slice search ran at about 11 spectra/s. The filtered vote (`wip/dia-vote-filter`)
+uses `--peak-filter 100:20`'s windowed top-K peaks for the fragment-index vote only. Scoring and
+the DIA columns keep every peak. All rows: near-variant decoys, `--dia-ms1-tol-ppm 15`,
+`--fragment-tol-ppm 15 --peak-filter 100:20`, Percolator 3 seeds (mean).
+
+| Slices | Wall time O4 / B18 | O4: q ≤ 1% / FDP_c | B18: q ≤ 1% / FDP_c | N at FDP_c 1% / 2%, O4 | N at FDP_c 1% / 2%, B18 |
+|---:|---|---:|---:|---:|---:|
+| 1, unfiltered vote | 22 / 17 min | 866 / 2.0% | 843 / 2.9% | 81 / – | 122 / – |
+| 8, unfiltered vote | 74 / 39 min | 2,352 / 2.0% | 2,170 / 2.7% | 1,498 / – | 698 / – |
+| 1 | 1.6 / 1.4 min | 1,520 / 2.6% | 1,216 / 1.4% | 846 / 1,377 | 1,006 / 1,396 |
+| 2 | 2.7 / 2.8 min | 1,778 / 2.2% | 1,419 / 2.2% | 695 / 1,731 | 473 / 1,169 |
+| 4 | 4.5 / 4.3 min | 1,934 / 1.5% | 1,737 / 2.5% | 1,128 / 2,122 | 267 / 1,175 |
+| 8 | 7.2 / 6.6 min | 2,515 / 1.9% | 1,925 / 2.8% | 1,162 / 2,666 | 0 / 0 |
+| 16 | 11.8 / 11.3 min | 2,594 / 1.9% | 2,174 / 2.3% | 1,266 / 2,745 | 271 / 1,989 |
+| 32 | 19.7 / 18.0 min | 2,725 / 2.0% | 1,909 / 2.1% | 1,327 / 2,783 | 360 / 1,972 |
+| 1, reversed decoys | 1.5 min | 1,641 / 5.5% | 1,338 / 5.8% | 37 / 37 | 3 / 116 |
+
+- The filtered vote is 10-14x faster and finds more precursors at the same FDP_c. It does not
+  fix calibration on its own: with reversed decoys it is still at 5.5-5.8%.
+- Slices raise q ≤ 1% counts up to 16 slices (O4 1,520 → 2,594, B18 1,216 → 2,174), at about
+  2% FDP_c. 32 slices add little and take 12x longer than 1 slice.
+- On B18 one Arabidopsis peptide (`PVQADLIGSKVPSPFLHTVDHGR`) ranks first at 8 slices in every
+  seed, so N at FDP_c 1% and 2% is 0 there. The N-at-FDP_c counts are unstable at this sample
+  size, and the q ≤ 1% counts are the steadier measure.
+- On the Astral set (reversed decoys, 3 seeds), the filtered vote costs precursors: N at FDP_c
+  1% falls from 1,914 / 2,059 (no peak filter) and 1,859 / 1,965 (`--peak-filter` at scoring) to
+  1,718 / 1,896. Astral spectra are sparse, so the vote filter is a diaPASEF option only.
+
 - The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
   (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
   precursors vs 64,737 for `hcd_qexactive_tryp`, so the seed model already fits timsTOF MS2.
