@@ -283,6 +283,43 @@ differ most in `matchedIonRatio` (AUC 0.75) and the andes-ms2 agreement (0.71), 
 already has. Counting repeats over adjacent scans adds a little on raw02 (above); what is left is
 deconvolving the apex scans or an empirical fragment library from the run.
 
+## diaPASEF (timsTOF `.d`, not calibrated yet)
+
+Data: two ProteoBench low-input diaPASEF runs (O4, cond B, and B18, cond A), 15 windows (5 window
+groups x 3 mobility ranges), searched against HYE plus reviewed Arabidopsis as entrapment
+(r = 0.4804). FDP_c is the combined entrapment estimate at andes's q ≤ 0.01. Percolator 3.7.1,
+`--trainFDR 0.05`, seed 42 unless the row says 3 seeds (42, 1, 2, mean). DIA-NN 2.2
+library-free on the same FASTA: 4,940 / 4,931 precursors at about 1.8% / 1.7% FDP_c.
+
+| Change | O4 precursors / FDP_c | B18 precursors / FDP_c |
+|---|---:|---:|
+| Baseline, whole window (1 slice), seed 42 | 1,122 / 6.3% | 1,132 / 6.5% |
+| Baseline, whole window (1 slice), 3 seeds | 1,162 / 6.5% | 1,091 / 6.6% |
+| Baseline, 8 overlapping mobility slices | 2,893 / 5.7% | 2,617 / 5.2% |
+| timsTOF-trained model `cid_timstof_tryp` (1 slice) | 1,339 / 7.1% | 1,124 / 4.9% |
+| timsTOF-trained model (8 slices) | 2,971 / 5.4% | 2,618 / 5.3% |
+| 2D RT x mobility peak-group columns (13 `pg_*`, 1 slice), 3 seeds | 1,222 / 6.3% | 1,058 / 5.8% |
+| Shared-fragment filter, F = 0.3 (1 slice), 3 seeds | 1,230 / 5.7% | 998 / 3.1% |
+| Shared-fragment filter, F = 0.4 (1 slice), 3 seeds | 1,202 / 4.7% | 1,065 / 4.5% |
+| Shared-fragment filter, F = 0.4 (8 slices), 3 seeds | 2,916 / 4.5% | 2,560 / 5.0% |
+
+- The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
+  (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
+  precursors vs 64,737 for `hcd_qexactive_tryp`, so the seed model already fits timsTOF MS2.
+- The peak-group columns trace each candidate's b/y ions over ±5 cycles of its window group and
+  8-scan mobility bins. They score a 2D median consensus, co-apex, RT and mobility marginal
+  correlations, and MS1 2D correlation (`crates/input/examples/pasef_peakgroup.rs`).
+- The shared-fragment filter removes a PIN row before Percolator when a higher-RawScore row of
+  the same spectrum shares ≥ F of its b/y m/z (±0.02 Da). It does not use labels. About half of
+  the entrapment winners at q ≤ 0.01 are one-residue variants of a stronger HYE target in the
+  same spectrum, against 1-2% of HYE winners. The filter lowers FDP_c by 1-3 points but leaves it
+  at 3-5%. Run-to-run spread over seeds is about ±1 point.
+- Earlier attempts with no gain: `--trainFDR 0.01`, two other scoring models, an offline
+  ion-mobility residual column, and fragment mobility co-apex columns (6.3% → 6.8%).
+- Decoys are exchangeable with entrapment hits on every PIN feature (AUC 0.50-0.52). The excess
+  FDP comes from target-like wrong peptides (near-variants and co-isolated peptides), which
+  reversed decoys do not model.
+
 ## Reproduce
 
 ```bash
