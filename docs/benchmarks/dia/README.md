@@ -342,6 +342,35 @@ the DIA columns keep every peak. All rows: near-variant decoys, `--dia-ms1-tol-p
   1% falls from 1,914 / 2,059 (no peak filter) and 1,859 / 1,965 (`--peak-filter` at scoring) to
   1,718 / 1,896. Astral spectra are sparse, so the vote filter is a diaPASEF option only.
 
+### m/z calibration, and what still misses DIA-NN's precursors
+
+diaPASEF `.d` runs have no `Precursors` table, so the reader cannot fit its MS1 m/z calibration
+and uses the acquisition-range model. On DIA-NN's confident precursors, andes's MS1 peak is a
+median 5.0 ppm off (4.1 ppm at m/z 400, 6.2 ppm at m/z 800), and the top fragment ions +3.8 ppm.
+`--fragment-tol-ppm 15` also turns off andes's own fragment-error measurement. All rows: 16
+slices, filtered vote, near-variant decoys, Percolator 3 seeds (mean).
+
+| Change | O4: q ≤ 1% / FDP_c | B18: q ≤ 1% / FDP_c |
+|---|---:|---:|
+| `--fragment-tol-ppm 15`, MS1 gate 15 ppm | 2,594 / 1.9% | 2,174 / 2.3% |
+| + `--top-n 20` | 2,484 / 2.2% | 2,203 / 2.3% |
+| Fragment tolerance measured (offset +3.5 / +5.7 ppm, recentred) | 2,942 / 1.7% | 2,492 / 2.5% |
+| + MS1 offset measured on 20k spectra (+5.4 / +8.3 ppm), gate 8 ppm | **3,105 / 1.7%** | **2,928 / 2.3%** |
+| same, gate 5 ppm | 3,123 / 1.6% | 2,938 / 2.5% |
+| + fragment-index top-K 300 (default 100) | 2,980 / 1.8% | 2,771 / 2.4% |
+| + vote filter 100:40 (default 100:20) | 3,103 / 1.6% | 2,668 / 2.0% |
+| DIA-NN 2.2 | ~4,900 / 1.8% | ~4,900 / 1.7% |
+
+- The MS1 offset is measured on a first pass over 20,000 mid-mass spectra with a 25 ppm gate:
+  the median signed error of the confident PSMs' monoisotopic peaks. A 3,000-spectrum sample
+  had too few confident PSMs on B18 (about 100).
+- After calibration andes finds 63% / 60% of DIA-NN's q ≤ 1% count. Of DIA-NN's HYE
+  precursors at q ≤ 1%, andes reports 56% / 51% at q ≤ 1%. 24% / 31% never reach the PIN
+  (their MS1 area is 0.25-0.3 log10 lower than the ones that do), and the rest are in the PIN
+  below the cut (median andes q 0.03-0.04).
+- More fragment-index candidates or a looser vote filter do not bring the missing precursors
+  in, so candidate retrieval is not the limit.
+
 - The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
   (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
   precursors vs 64,737 for `hcd_qexactive_tryp`, so the seed model already fits timsTOF MS2.
