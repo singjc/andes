@@ -97,7 +97,7 @@ fn score_mass_ordered(
 }
 
 fn recalibrate_dia_ms1(prepared: &mut PreparedSearch, pending: &[Spectrum], span_da: f64) {
-    const SAMPLE: usize = 3000;
+    const SAMPLE: usize = 20_000;
     const WINDOW_PPM: f64 = 25.0;
     let t = std::time::Instant::now();
     let mut refs: Vec<&Spectrum> = pending.iter().filter(|s| s.peaks.len() >= 10).collect();
