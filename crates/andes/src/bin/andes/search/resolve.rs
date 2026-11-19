@@ -888,6 +888,9 @@ pub(super) fn resolve_search_params(
     scoring_crate::scoring::init_scoring_settings(scoring_crate::scoring::ScoringSettings {
         peak_filter,
     });
+    if std::env::var_os("ANDES_DIA_VOTE_FILTER").is_some() {
+        params.dia_vote_filter = peak_filter.filter(|&(w, k)| w > 0.0 && k > 0);
+    }
 
     params.max_missed_cleavages = if cli.glyco {
         let explicit = *EXPLICIT_MISSED_CLEAVAGES.get().unwrap_or(&false);

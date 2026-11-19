@@ -42,6 +42,28 @@ pub type CandidateFilter = Box<dyn Fn(&Candidate) -> bool + Send + Sync>;
 
 const DIA_MS1_GATE_SCANS: usize = 1;
 
+fn windowed_top_k(peaks: &[(f64, f32)], width: f64, k: usize) -> Vec<(f64, f32)> {
+    let mut by_window: Vec<(i64, f32, usize)> = peaks
+        .iter()
+        .enumerate()
+        .map(|(i, p)| ((p.0 / width).floor() as i64, p.1, i))
+        .collect();
+    by_window.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(b.1.total_cmp(&a.1)));
+    let mut keep: Vec<usize> = Vec::with_capacity(peaks.len().min(k * 32));
+    let (mut win, mut n) = (i64::MIN, 0usize);
+    for &(w, _, i) in &by_window {
+        if w != win {
+            (win, n) = (w, 0);
+        }
+        if n < k {
+            keep.push(i);
+            n += 1;
+        }
+    }
+    keep.sort_unstable();
+    keep.into_iter().map(|i| peaks[i]).collect()
+}
+
 pub type ScorerLoader = Box<dyn Fn(ActivationMethod) -> Option<RankScorer> + Send + Sync>;
 
 struct PerScanScorers {
@@ -1050,8 +1072,16 @@ impl<'a> PreparedSearch<'a> {
                             })
                         })
                     };
+                    let voted = params
+                        .dia_vote_filter
+                        .filter(|_| params.dia)
+                        .map(|(w, k)| Spectrum {
+                            peaks: windowed_top_k(&spec.peaks, w, k),
+                            title: String::new(),
+                            ..*spec
+                        });
                     let sel = fi.query_where(
-                        spec,
+                        voted.as_ref().unwrap_or(spec),
                         &charges_to_try,
                         params,
                         scorer.feature_match_tolerance(),
