@@ -302,6 +302,13 @@ library-free on the same FASTA: 4,940 / 4,931 precursors at about 1.8% / 1.7% FD
 | Shared-fragment filter, F = 0.3 (1 slice), 3 seeds | 1,230 / 5.7% | 998 / 3.1% |
 | Shared-fragment filter, F = 0.4 (1 slice), 3 seeds | 1,202 / 4.7% | 1,065 / 4.5% |
 | Shared-fragment filter, F = 0.4 (8 slices), 3 seeds | 2,916 / 4.5% | 2,560 / 5.0% |
+| Near-variant decoys (FASTA, `--decoy-strategy none`, 1 slice), 3 seeds | 866 / 2.0% | 843 / 2.9% |
+
+Near-variant decoys: each target protein gets a decoy with one random interior substitution per
+tryptic segment of length ≥ 7 (no K, R, P, C, M or I as the new residue, mass change > 1.1 Da).
+With these decoys, nominal q ≤ 0.01 measures 1.7-4.2% FDP_c instead of 6.3-7.0%. At a true FDP_c
+of 1%, the yield rises from 35 to 81 precursors (O4) and from 62 to 122 (B18), mean of 3 seeds.
+That count is small and noisy because one entrapment hit near the top of the list ends it.
 
 - The timsTOF model was trained with `andes train-from-search` on three PXD028735 ddaPASEF runs
   (Human, Yeast, Ecoli _01, 213,326 labels). On held-out QC_01 ddaPASEF it gives 64,685
@@ -317,8 +324,12 @@ library-free on the same FASTA: 4,940 / 4,931 precursors at about 1.8% / 1.7% FD
 - Earlier attempts with no gain: `--trainFDR 0.01`, two other scoring models, an offline
   ion-mobility residual column, and fragment mobility co-apex columns (6.3% → 6.8%).
 - Decoys are exchangeable with entrapment hits on every PIN feature (AUC 0.50-0.52). The excess
-  FDP comes from target-like wrong peptides (near-variants and co-isolated peptides), which
-  reversed decoys do not model.
+  FDP comes from target-like wrong peptides, which reversed decoys do not model. Entrapment
+  winners share a median 7-18% of their b/y ions with a confident HYE peptide in the same
+  spectrum (19% share ≥ 50%), against 0% for HYE winners and for decoys at the cut. Their
+  precursor is a median 7 Th from that parent, which a 2 Th Astral window cannot hold but a
+  30-75 Th diaPASEF window can. Near-variant decoys share fragments in the same way, so they
+  restore most of the calibration (table above).
 
 ## Reproduce
 
