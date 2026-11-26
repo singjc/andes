@@ -79,6 +79,11 @@ impl FormRtCache {
         v
     }
 
+    /// Diagnostic: number of cached predictions.
+    pub fn len(&self) -> usize {
+        self.shards.iter().map(|s| s.lock().unwrap().len()).sum()
+    }
+
     /// Drops every cached prediction.
     pub fn clear(&self) {
         for s in &self.shards {

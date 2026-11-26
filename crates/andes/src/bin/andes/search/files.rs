@@ -64,8 +64,13 @@ fn score_mass_ordered(
         prepared.set_dia_rt_prior(None);
     }
     measurer.measure(prepared, pending.iter(), Some(span_da));
+    crate::memory::mark_stage("diag measured");
     if prepared.params.dia {
         calibrate_dia_rt(prepared, &pending, span_da);
+        let (c, k, r, f) = prepared.cache_sizes();
+        crate::memory::mark_stage(&format!(
+            "diag rt prepass accum {c} keys {k} rtcache {r} fragcache {f}"
+        ));
     }
     pending.sort_by(|a, b| index_order_mass(a).total_cmp(&index_order_mass(b)));
     log::info!(
@@ -82,6 +87,17 @@ fn score_mass_ordered(
         let offset = all_spectra.len();
         let queues = prepared.run_chunk(&chunk, offset);
         all_queues.extend(queues);
+        {
+            let (c, k, r, f) = prepared.cache_sizes();
+            let psms: usize = all_queues.iter().map(|q| q.iter_psms().count()).sum();
+            let peaks: usize = chunk.iter().map(|s| s.peaks.len()).sum();
+            let kept: usize = all_spectra.iter().map(|s| s.peaks.len()).sum();
+            let left: usize = rest.iter().map(|s| s.peaks.len()).sum();
+            crate::memory::mark_stage(&format!(
+                "diag chunk {offset} n {} peaks {peaks} kept {kept} left {left} accum {c} keys {k} rtcache {r} fragcache {f} psms {psms}",
+                chunk.len()
+            ));
+        }
         for mut spec in chunk.into_iter() {
             if let Some(q) = quant.as_deref_mut() {
                 q.on_spectrum(&spec);

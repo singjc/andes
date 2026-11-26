@@ -151,6 +151,17 @@ impl<'a> PreparedSearch<'a> {
         self.chunk_prep_nanos.load(Ordering::Relaxed) as f64 * 1e-9
     }
 
+    /// Diagnostic: materialised candidates, key-map entries, RT-cache entries, frag-cache keys.
+    pub fn cache_sizes(&self) -> (usize, usize, usize, usize) {
+        let a = self.mmap_accum.lock().unwrap();
+        (
+            a.candidates.len(),
+            a.index_of.len(),
+            self.form_rt_cache.len(),
+            self.frag_pred_cache.len(),
+        )
+    }
+
     pub fn open_search_stats(&self) -> (usize, usize) {
         (
             self.open_rescore_attempts.load(Ordering::Relaxed),

@@ -84,6 +84,11 @@ impl FragPredCache {
         intensities
     }
 
+    /// Diagnostic: number of hash keys.
+    pub fn len(&self) -> usize {
+        self.shards.iter().map(|s| s.lock().unwrap().len()).sum()
+    }
+
     /// Drops every cached prediction.
     pub fn clear(&self) {
         for s in &self.shards {
