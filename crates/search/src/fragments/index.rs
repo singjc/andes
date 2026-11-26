@@ -19,11 +19,22 @@ struct GroupPass1 {
     counts: Vec<u32>,
 }
 
-type VoteBuffers = (Vec<(u16, f32)>, Vec<u32>);
+type VoteBuffers = (Vec<(u16, f32)>, Vec<u32>, Vec<VoteQuery>);
+
+/// One vote query of a spectrum: a peak (or a complement m/z), its intensity and tolerance,
+/// and the first and last bin it reads.
+#[derive(Clone, Copy)]
+struct VoteQuery {
+    mz: f64,
+    tol_da: f64,
+    intensity: f32,
+    first: u32,
+    last: u32,
+}
 
 thread_local! {
     static VOTE_BUF: std::cell::RefCell<VoteBuffers> =
-        const { std::cell::RefCell::new((Vec::new(), Vec::new())) };
+        const { std::cell::RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
 }
 
 pub struct ChunkFragmentIndex {
@@ -518,17 +529,14 @@ impl ChunkFragmentIndex {
         let row_len = self.n_blocks + 1;
         VOTE_BUF.with(|cell| {
             let mut buf = cell.borrow_mut();
-            let (counts, touched) = &mut *buf;
+            let (counts, touched, queries) = &mut *buf;
             if counts.len() < width {
                 counts.resize(width, (0, 0.0));
             }
             touched.clear();
+            queries.clear();
             let floor = vote_intensity_floor(&spec.peaks, vote_peaks);
-            let vote = |mz: f64,
-                            intensity: f32,
-                            counts: &mut Vec<(u16, f32)>,
-                            touched: &mut Vec<u32>,
-                            clip: bool| {
+            let mut push = |mz: f64, intensity: f32, clip: bool| {
                 let tol_da = fragment_tol.as_da(mz);
                 let b = (mz / self.bin_width) as usize;
                 if clip && b >= n_bins {
@@ -541,36 +549,21 @@ impl ChunkFragmentIndex {
                 let last = (((mz + tol_da + VOTE_BIN_MARGIN_DA) / self.bin_width) as usize)
                     .min(b + span)
                     .min(n_bins - 1);
-                for bb in first..=last {
-                    let base = self.bin_start[bb] as usize;
-                    let row = &self.block_off[bb * row_len..(bb + 1) * row_len];
-                    for &(s_lo, s_hi, blk_lo, blk_hi) in &spans {
-                        let seg = &self.entries
-                            [base + row[blk_lo] as usize..base + row[blk_hi + 1] as usize];
-                        for e in seg {
-                            if e.0 < s_lo {
-                                continue;
-                            }
-                            if e.0 >= s_hi {
-                                break;
-                            }
-                            if ((e.1 as f64) - mz).abs() <= tol_da {
-                                let slot = &mut counts[(e.0 - id_lo) as usize];
-                                if slot.0 == 0 {
-                                    touched.push(e.0);
-                                }
-                                slot.0 += 1;
-                                slot.1 += intensity;
-                            }
-                        }
-                    }
+                if first <= last {
+                    queries.push(VoteQuery {
+                        mz,
+                        tol_da,
+                        intensity,
+                        first: first as u32,
+                        last: last as u32,
+                    });
                 }
             };
             for &(mz, intensity) in &spec.peaks {
                 if intensity < floor {
                     continue;
                 }
-                vote(mz, intensity, counts, touched, false);
+                push(mz, intensity, false);
             }
             for &base in complement_masses {
                 for &(mz, intensity) in &spec.peaks {
@@ -581,7 +574,35 @@ impl ChunkFragmentIndex {
                     if q <= 0.0 {
                         continue;
                     }
-                    vote(q, intensity, counts, touched, true);
+                    push(q, intensity, true);
+                }
+            }
+            for &(s_lo, s_hi, blk_lo, blk_hi) in &spans {
+                for blk in blk_lo..=blk_hi {
+                    for q in queries.iter() {
+                        for bb in q.first as usize..=q.last as usize {
+                            let base = self.bin_start[bb] as usize;
+                            let row = &self.block_off[bb * row_len..(bb + 1) * row_len];
+                            let seg = &self.entries
+                                [base + row[blk] as usize..base + row[blk + 1] as usize];
+                            for e in seg {
+                                if e.0 < s_lo {
+                                    continue;
+                                }
+                                if e.0 >= s_hi {
+                                    break;
+                                }
+                                if ((e.1 as f64) - q.mz).abs() <= q.tol_da {
+                                    let slot = &mut counts[(e.0 - id_lo) as usize];
+                                    if slot.0 == 0 {
+                                        touched.push(e.0);
+                                    }
+                                    slot.0 += 1;
+                                    slot.1 += q.intensity;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             let mut sel = Vec::new();
