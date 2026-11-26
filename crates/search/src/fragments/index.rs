@@ -585,6 +585,7 @@ impl ChunkFragmentIndex {
                 }
             }
             let mut sel = Vec::new();
+            touched.sort_unstable();
             for &id in touched.iter() {
                 let slot = &mut counts[(id - id_lo) as usize];
                 if slot.0 >= min_matched {
