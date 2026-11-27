@@ -28,6 +28,10 @@ const DIA_MOBILITY_MARGIN_QUANTILE: f64 = 0.9;
 /// Calibration sample sizes in search order: the first sample (`DIA_RT_CAL_FRACTION` of the
 /// run, at least `DIA_RT_CAL_MIN_SPECTRA`), then doubling up to every spectrum of the run.
 pub(super) fn dia_rt_cal_sizes(n_spectra: usize) -> Vec<usize> {
+    let n_spectra = std::env::var("ANDES_DIAG_RT_CAL_MAX")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .map_or(n_spectra, |m| n_spectra.min(m));
     let mut n = ((n_spectra as f64 * DIA_RT_CAL_FRACTION).round() as usize)
         .max(DIA_RT_CAL_MIN_SPECTRA)
         .min(n_spectra);
