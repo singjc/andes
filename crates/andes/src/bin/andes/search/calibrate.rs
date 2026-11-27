@@ -112,6 +112,7 @@ pub(super) fn calibrate_dia_rt(prepared: &PreparedSearch, spectra: &[Spectrum], 
             .filter(|((top, l), q)| !l.is_decoy && **q <= DIA_RT_CAL_Q && top.1.is_finite())
             .map(|((top, _), _)| (f64::from(model(&prepared.candidate_peptide(top.0))), top.1))
             .collect();
+        log::info!(target: "dia-rt-rank", "DIAG step {searched}: {} anchors, {} tops, {:.1}s", anchors.len(), tops.len(), t.elapsed().as_secs_f64());
         if anchors.len() >= search::dia::FULL_MAP_ANCHORS {
             break;
         }
