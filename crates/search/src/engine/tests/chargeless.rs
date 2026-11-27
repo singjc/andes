@@ -124,12 +124,13 @@ fn top_only_search_keeps_the_psms_of_the_full_search() {
         spectrum(mz2, Some(2), &[&other]),
         spectrum(mz2, None, &[&other, &truth]),
     ];
-    let key = |q: TopNQueue| -> Vec<(u8, u32, u32, i32)> {
+    let key = |s: &PreparedSearch, q: TopNQueue| -> Vec<(String, u8, u32, u32, i32)> {
         let mut v: Vec<_> = q
             .into_sorted_vec()
             .iter()
             .map(|p| {
                 (
+                    s.candidate_peptide(p.primary_candidate_idx()).to_string(),
                     p.charge_used,
                     p.score.to_bits(),
                     p.rank_score.to_bits(),
@@ -153,17 +154,25 @@ fn top_only_search_keeps_the_psms_of_the_full_search() {
         let scorer = crate::engine::coisolation::tests::tiny_scorer();
         let full = PreparedSearch::prepare_in_memory(&idx, &params, &scorer, 0.02, "XXX").unwrap();
         let top = PreparedSearch::prepare_in_memory(&idx, &params, &scorer, 0.02, "XXX").unwrap();
-        let a: Vec<_> = full.run_chunk(&spectra, 3).into_iter().map(key).collect();
+        let a: Vec<_> = full
+            .run_chunk(&spectra, 3)
+            .into_iter()
+            .map(|q| key(&full, q))
+            .collect();
         let b: Vec<_> = top
             .run_chunk_for_top(&spectra, 3, &params)
             .into_iter()
-            .map(key)
+            .map(|q| key(&top, q))
             .collect();
         assert!(a.iter().any(|q| !q.is_empty()), "{mode:?} {top_k}");
         assert_eq!(a, b, "{mode:?} top_k {top_k}");
-        assert_eq!(full.materialized_len(), top.materialized_len());
-        for i in 0..full.materialized_len() as u32 {
-            assert_eq!(full.candidate_peptide(i), top.candidate_peptide(i));
-        }
+        let peptides = |s: &PreparedSearch| {
+            let mut v: Vec<String> = (0..s.materialized_len() as u32)
+                .map(|i| s.candidate_peptide(i).to_string())
+                .collect();
+            v.sort_unstable();
+            v
+        };
+        assert_eq!(peptides(&full), peptides(&top));
     }
 }
